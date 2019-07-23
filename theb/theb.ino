@@ -29,6 +29,8 @@ long led2_timer = 0;
 int speaker_state = OFF;
 int speaker_change = 500;
 long speaker_timer = 0;
+long alarm_change = 30000;
+long alarm_timer = 0;
 
 // sound variables and samples
 // ref http://ardx.org/src/circ/CIRC06-code.txt
@@ -82,20 +84,20 @@ void loop() {
       Serial.write("\n ");
       // reset timings
       set_timings();
-      delay(200); // delay for clean button press      
+      delay(300); // delay for clean button press      
   }
 
   if (state >= ON) {
     int motion = digitalRead(pir);  
-    if (state == ON && motion == HIGH) { 
+    if (state == ON && motion == HIGH && buttonState == HIGH /* not pressed*/) { 
         Serial.println("Motion ");      
          state = ALARM;
          statechange = ALARM;               
-    } else if (state == ALARM && motion == LOW) {
-         Serial.println("Motion ended ");
+    } else if (state == ALARM && motion == LOW && buttonState == HIGH /* not pressed*/ && millis() - alarm_timer >= alarm_change) {
+         Serial.println("Motion ended + alarm expired");
          state = ON;
-         statechange = ON;       
-    }
+         statechange = ON;   
+    } 
   }
   
   // handle state change directly
@@ -104,16 +106,17 @@ void loop() {
       digitalWrite(led, LOW); 
       led2_state = LOW;
       digitalWrite(led2, led2_state);
-      speaker_state == ON;      
+      speaker_state == OFF;      
       digitalWrite(speaker, LOW);   
     } else if (statechange == ON) {      
       digitalWrite(led, HIGH); 
+      alarm_timer = millis(); // delay arming alarm to avoid false positives
       led2_state = LOW;
       digitalWrite(led2, led2_state);
-      speaker_state == OFF;      
-      
+      speaker_state == OFF;        
     } else if (statechange == ALARM) {
-      Serial.print("Alarm!");
+      Serial.println("Alarm!");
+      alarm_timer = millis();
       led2_state = HIGH;
       digitalWrite(led2, led2_state);
       speaker_state == ON;
